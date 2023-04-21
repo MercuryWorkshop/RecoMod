@@ -36,8 +36,8 @@ tty=/run/frecon/vt0
 echo "doing thingy" > $tty
 sleep 1
 
-boot_cros
-# comment out boot_cros if you want to use the shell instead
+# boot_cros
+# comment out boot_cros if you want to use switch_root
 
 
 
