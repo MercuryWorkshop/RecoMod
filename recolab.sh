@@ -87,7 +87,12 @@ patch_root_complete() {
   chmod +x "$ROOT/usr/sbin/bootstrap-shell"
 
 
+  cp "clamide" "$ROOT/usr/sbin/clamide"
+  chmod +x "$ROOT/usr/sbin/clamide"
+
+
   cp -r "$FLAGS_kit" "$ROOT/usr/recokit"
+  chmod +x "$ROOT/usr/recokit/"*
 
 }
 patch_root_minimal(){

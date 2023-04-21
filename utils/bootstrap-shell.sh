@@ -1,26 +1,49 @@
-#!/bin/sh
+#!/bin/sh +x
 # this runs as busybox sh, not bash!
+# additionally, this has pid 1. do not let it die, or else kernel panic
 USB_MNT=/usb
-invoke_terminal() {
-    local tty="$1"
-    local title="$2"
-    shift
-    shift
-    # Copied from factory_installer/factory_shim_service.sh.
-    echo "${title}" >>${tty}
-    setsid sh -c "exec script -afqc '$*' /dev/null <${tty} >>${tty} 2>&1 &"
+KIT=$USB_MNT/usr/recokit
+BACKGROUND=303446
+init_frecon(){
+  # taken from messages.sh
+  local resolution="$(frecon-lite --print-resolution)"
+  local x_res="${resolution% *}"
+
+  if [ "${x_res}" -ge 1920 ]; then
+    FRECON_SCALING_FACTOR=0
+  else
+    FRECON_SCALING_FACTOR=1
+  fi
+
+  frecon-lite --enable-vt1 --daemon --no-login --enable-gfx \
+              --enable-vts --scale="${FRECON_SCALING_FACTOR}" \
+              --clear "0x${BACKGROUND}" --pre-create-vts \
+              "${KIT}/splash.png"
+  sleep 2
+  printf "\033]switchvt:0\a" > /run/frecon/current
 }
 
-enable_debug_console() {
-    local tty="$1"
-    echo -e '\033[1;33m[cros_debug] enabled on '${tty}'.\033[m'
-    invoke_terminal "${tty}" "[Bootstrap Debug Console]" "/bin/busybox sh"
+boot_cros(){
+mount /dev/mmcblk0p1 $USB_MNT/mnt/stateful_partition
+    pkill -f frecon
+    exec switch_root $USB_MNT /sbin/init > $tty
+    sleep 1d
 }
 
+init_frecon
+
+tty=/run/frecon/vt0
+echo "doing thingy" > $tty
 sleep 1
 
-enable_debug_console /run/frecon/vt0
+boot_cros
+# comment out boot_cros if you want to use the shell instead
 
-sleep 1d
 
-exec /usr/recokit/main.sh
+
+
+echo "bootstrap-shell" >>${tty}
+setsid sh -c "exec script -afqc '$KIT/main.sh' /dev/null <${tty} >>${tty} 2>&1 &"
+
+# slumber forever
+tail -f /dev/null

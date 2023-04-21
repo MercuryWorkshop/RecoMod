@@ -16,4 +16,4 @@ clamide -p 1 --syscall execve "str:$USB_MNT/usr/sbin/bootstrap-shell"
 echo "cleaning up from recovery"
 spinner=$(pgrep sh | tail -1)
 kill -9 $spinner
-
+pkill -f frecon-lite
