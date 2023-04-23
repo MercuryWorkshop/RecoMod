@@ -42,6 +42,22 @@ attach_streams(){
   dup2 "$TTY_FD" 2 # stderr 
   
 }
+sever_streams(){
+  dup2 $STDOUT_BACKUP 0
+  dup2 $STDIN_BACKUP 1
+  dup2 $STDERR_BACKUP 2
+
+  close "$TTY_FD"
+}
+
+boot_cros(){
+    mount /dev/mmcblk0p1 $USB_MNT/mnt/stateful_partition
+    pkill -f frecon
+    exec switch_root $USB_MNT /sbin/init > $tty
+
+    echo "something went wrong!"
+    sleep 1d # this should never be reached
+}
 
 
 
@@ -55,10 +71,13 @@ attach_streams $TTY
 printf "\033]box:color=0x${BACKGROUND};size=10000,10000\a" > $TTY
 clear
 echo "bootstrap complete"
-sleep 1
+sleep 0.2
 
 
 export LD_LIBRARY_PATH="$USB_MNT/lib:$USB_MNT/lib64:$USB_MNT/usr/lib:$USB_MNT/usr/lib64"
 export TERM
-exec $USB_MNT/bin/bash "$KIT/main.sh"
-# setsid sh -c "exec script -afqc 'sh $KIT/main.sh' /dev/null <${TTY} >>${TTY} 2>&1 &"
+. "$KIT/main.sh"
+
+# failsafe in case
+echo "you fucked up!! the kit exited!"
+tail -f /dev/null
