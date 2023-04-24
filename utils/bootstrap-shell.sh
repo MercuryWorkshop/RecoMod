@@ -79,5 +79,5 @@ export TERM
 . "$KIT/main.sh"
 
 # failsafe in case
-echo "you fucked up!! the kit exited!"
+echo "the kit exited!"
 tail -f /dev/null

@@ -42,7 +42,9 @@ pick "Pick the type of shell you want" \
   "Chroot bash shell" \
 
 case $CHOICE in
-  1) CHROOT= ;;
+  1)
+    CHROOT= 
+    exec /bin/busybox sh ;;
   2) pick_chroot_dest ;;
   *) echo "invalid choice"
 esac

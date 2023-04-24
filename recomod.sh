@@ -124,7 +124,7 @@ strip_root() {
   rm -rf "$ROOT/usr/lib64/dri"
   rm -rf "$ROOT/usr/lib64/samba"
 
-  rm -rf "$ROOT/usr/share/vim"
+  rm -rf "$ROOT/usr/share/vim" # :D
   rm -rf "$ROOT/usr/share/cros-camera"
   rm -rf "$ROOT/usr/share/X11"
 
