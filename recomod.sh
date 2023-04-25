@@ -190,8 +190,20 @@ shrink_table() {
   suppress cat "$jankfile"
   rm -f "$jankfile"
 
-  suppress "$SFDISK" -N 1 --move-data "${loopdev}" <<<"+,-"
 
+  local numparts=12
+  local numtries=6
+
+
+  i=0
+  while [ $i -le $numtries ]; do
+    j=1
+    while [ $j -le $numparts ]; do
+      suppress "$SFDISK" -N $j --move-data "${loopdev}" <<<"+,-" || :
+      j=$((j+1))
+    done
+    i=$((i+1))
+  done
 }
 truncate_image() {
   local buffer=35 # magic number to ward off evil gpt corruption spirits
