@@ -10,7 +10,7 @@ leave() {
 
 quit() {
   trap - EXIT
-  echo -e "\x1B[31mExiting: $1\x1b[39;49m" >&2
+  echo -e "\x1b[31mExiting: $1\x1b[39;49m" >&2
   exit "$2"
 }
 
@@ -44,7 +44,7 @@ info() {
 traps() {
   set -e
   trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
-  trap 'echo "\"${last_command}\": "$BASH_COMMAND" command failed with exit code $?. THIS IS A BUG, REPORT IT HERE https://github.com/MercuryWorkshop/RecoMod"' EXIT
+  trap 'echo -e "\x1b[31m\"${last_command}\": "$BASH_COMMAND" command failed with exit code $?. THIS IS A BUG, REPORT IT HERE https://github.com/MercuryWorkshop/RecoMod\x1b[31m"' EXIT
 }
 
 configure_binaries() {
@@ -58,10 +58,18 @@ configure_binaries() {
     quit "Cannot find the required ssd_util script. Please make sure you're executing this script inside the directory it resides in" 1
   fi
 
-  if [ -f lib/sfdisk ]; then
-    SFDISK="${SCRIPT_DIR}/lib/sfdisk"
-  else
-    quit "Cannot find the required static sfdisk binary. Please make sure you're executing this script inside the directory it resides in" 1
+  if [ "$FLAGS_strip" = "$FLAGS_TRUE" ]; then
+    if suppress which sfdisk && [[ "$(sfdisk -v)" == "sfdisk from util-linux 2.38."* ]]; then
+      debug "using machine's sfdisk"
+      SFDISK=$(which sfdisk)
+    elif [ -f "${SCRIPT_DIR}/lib/sfdisk" ] && [ "$(uname -m)" = "x86_64" ] && [[ "$(uname)" == *Linux* ]]; then
+      debug "using static sfdisk"
+      SFDISK="${SCRIPT_DIR}/lib/sfdisk"
+      chmod +x "$SFDISK"
+    else
+      quit "Could not find a working version of sfdisk.
+If you are using a 32 bit or ARM system (or god forbid a mac), please make sure you have exactly version 2.38.1 of sfdisk installed, as it's the only one that works."
+    fi
   fi
 }
 getopts() {
@@ -186,7 +194,7 @@ shrink_table() {
 
 }
 truncate_image() {
-  local buffer=1000000 #1mb buffer. keeps things from breaking too much
+  local buffer=35 # magic number to ward off evil gpt corruption spirits
   local img=$1
   local fdisk_stateful_entry
   fdisk_stateful_entry=$(fdisk -l "$img" | grep "${img}1[[:space:]]")
@@ -194,11 +202,15 @@ truncate_image() {
   sector_size=$(fdisk -l "$img" | grep "Sector size" | awk '{print $4}')
   local end_sector
   end_sector=$(awk '{print $3}' <<<"$fdisk_stateful_entry")
-  local end_bytes=$((end_sector * sector_size + buffer))
+  local end_bytes=$(((end_sector + buffer) * sector_size))
 
   info "truncating image to $end_bytes bytes"
 
   truncate -s $end_bytes "$img"
+  suppress gdisk "$img" << EOF
+w
+y
+EOF
 }
 main() {
   if [ ! -f "$FLAGS_image" ]; then
@@ -281,6 +293,12 @@ if [ "$0" = "$BASH_SOURCE" ]; then
 
   if [ "$FLAGS_debug" = "$FLAGS_TRUE" ] && [ "$FLAGS_quiet" = "$FLAGS_FALSE" ]; then
     set -x
+  fi
+
+  if [[ $(uname -r) =~ Microsoft$ ]] || grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null || [[ -n "$IS_WSL" || -n "$WSL_DISTRO_NAME" ]]; then
+    info "WSL DETECTED!!!!!!!!!!!!!!!!!!!!
+WSL IS NOT SUPPORTED, PLEASE DO NOT FILE AN ISSUE IF THE SCRIPT RUNS INTO AN ERROR
+THE SCRIPT WILL CONTINUE TO RUN, BUT IT MAY NOT WORK"
   fi
 
   # breaks without this

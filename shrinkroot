@@ -1,0 +1,362 @@
+#!/bin/bash
+
+# WARNING this script could easily trash a image or worse a device. DO NOT USE IT WITH A DEVICE
+# It will make a copy of the image to work on by default unless you use the -o option 
+# which you should NOT unless your image is much bigger than >16GB
+# In other words test it on a disk image file that could be damaged.
+
+# Use the -h option to see list of options
+
+# You MUST use -t to do the last step truncation 
+
+# Will ONLY shink the LAST partition which needs to be the root partition of a disk image (likely from and SD or EMMC)
+# Should work for any image with above although for for Ayufan rock64 bionic images this will reset the auto expander on first boot.
+
+version="v0.0.1"
+
+function info() {
+	echo "$SCRIPTNAME: $1..."
+}
+
+function error() {
+	echo -n "$SCRIPTNAME: ERROR occured in line $1: "
+	shift
+	echo "$@"
+}
+
+function cleanup() {
+	if losetup "$loopback" &>/dev/null; then
+		losetup -d "$loopback"
+	fi
+	if [ "$log" = true ]; then
+		local old_owner=$(stat -c %u:%g "$src")
+		chown "$old_owner" "$LOGFILE"
+	fi
+
+}
+
+function logVariables() {
+	if [ "$log" = true ]; then
+		if [ "$verbose" = true ]; then echo "========= Log AT Line $1 ==========" >> "$LOGFILE";fi
+		shift
+		local v var
+		for var in "$@"; do
+			eval "v=\$$var"
+			echo "$var: $v" >> "$LOGFILE"
+		done
+		if [ "$verbose" = true ]; then echo "------------------------------------" >> "$LOGFILE";fi
+	fi
+}
+
+function logVerbose() {
+	if [ "$verbose" = true ]; then
+	logVariables "$@"
+	fi
+}
+
+function checkFilesystem() {
+	info "Checking filesystem"
+	e2fsck -pf "$loopback"
+	(( $? < 4 )) && return
+
+	info "Filesystem error detected!"
+
+	info "Trying to recover corrupted filesystem"
+	e2fsck -y "$loopback"
+	(( $? < 4 )) && return
+
+if [[ $repair == true ]]; then
+	info "Trying to recover corrupted filesystem - Phase 2"
+	e2fsck -fy -b 32768 "$loopback"
+	(( $? < 4 )) && return
+fi
+	error $LINENO "Filesystem recoveries failed. Giving up..."
+	exit -9
+
+}
+
+help() {
+	local help
+	read -r -d '' help << EOM
+Usage: $0 [-osdlvtrzh] imagefile.img [newimagefile.img]
+
+	-o: Overwrite input image"
+  -s: Don't expand filesystem when image is booted the first time
+  -d: Dry Run don't actually shrink
+	-l: Write debug messages in a debug log file
+	-v: Include extra information in debug log files
+	-t: truncate the image file of unpartioned space
+	-r: Use advanced filesystem repair option if the normal one fails
+  -z: Gzip compress image after shrinking
+EOM
+	echo "$help"
+	exit -1
+}
+
+usage() {
+	echo "Usage: $0 [-osldvtrzho] imagefile.img [newimagefile.img]"
+	echo ""
+	echo "  -o: Overwrite input image"
+	echo "  -s: Skip autoexpand"
+	echo "  -l: logging"
+	echo "  -d: dry run"
+	echo "  -v: verbose logging"
+	echo "  -t: truncate image"
+	echo "  -r: Use advanced repair options"
+	echo "  -z: Gzip compress image"
+	echo "  -h: display help text"
+	exit -1
+}
+
+should_skip_autoexpand=false
+log=false
+overwrite=false
+dryrun=false
+verbose=false
+repair=false
+gzip_compress=false
+truncate=false
+
+while getopts ":osdltrzhv" opt; do
+  case "${opt}" in
+		o) overwrite=true ;;
+    s) should_skip_autoexpand=true ;;
+    l) log=true;;
+		d) dryrun=true;;
+		v) verbose=true;;
+		t) truncate=true;;
+    r) repair=true;;
+    z) gzip_compress=true;;
+    h) help;;
+    *) usage ;;
+  esac
+done
+shift $((OPTIND-1))
+
+
+#Args
+src="$1"
+img="$1"
+CURRENT_DIR=$(pwd)
+SCRIPTNAME="${0##*/}"
+FILENAME=$(basename $1 .img)
+if [ "$overwrite" = false ]; then FILENAME=${2:-$(echo "$FILENAME-shrunk")}; fi
+LOGFILE=${CURRENT_DIR}/${FILENAME}.log
+echo $FILENAME $LOGNAME
+if [ "$log" = true ]; then
+	info "Creating log file $LOGFILE"
+	rm "$LOGFILE" &>/dev/null
+	exec 1> >(stdbuf -i0 -o0 -e0 tee -a "$LOGFILE" >&1)
+	exec 2> >(stdbuf -i0 -o0 -e0 tee -a "$LOGFILE" >&2)
+fi
+
+echo "${0##*/} $version"
+
+#Usage checks
+if [[ -z "$img" ]]; then
+  usage
+fi
+if [[ ! -f "$img" ]]; then
+  error $LINENO "$img is not a file..."
+  exit -2
+fi
+if (( EUID != 0 )); then
+  error $LINENO "You need to be running as root."
+  exit -3
+fi
+
+#Check that what we need is installed
+for command in parted losetup truncate bc tune2fs e2fsck resize2fs sgdisk; do
+  command -v $command >/dev/null 2>&1
+  if (( $? != 0 )); then
+    error $LINENO "$command is not installed."
+    exit -4
+  fi
+done
+
+#Copy to new file unless not request
+if [ "$overwrite" = false ]; then
+	info "Copying $1 to $FILENAME.img"
+  cp --reflink=auto --sparse=always "$1" "$FILENAME.img"
+  if (( $? != 0 )); then
+    error $LINENO "Could not copy file..."
+    exit -5
+  fi
+  old_owner=$(stat -c %u:%g "$1")
+  chown "$old_owner" "$2"
+  img="$FILENAME.img"
+fi
+
+# cleanup at script exit
+trap cleanup ERR EXIT
+
+#Gather info
+info "Gathering data"
+diskinfo=$(fdisk -l $img)
+bps=$(echo "$diskinfo" | grep Units | perl -pe 's/.*=//g;s/[^0-9]//g')
+partname=$(echo "$diskinfo" | tail -n 1 | perl -pe 's/ +/\t/g' | cut -f 1)
+partnum=${partname: -1}
+pss=$(echo "$diskinfo" | tail -n 1 | perl -pe 's/ +/\t/g' | cut -f 2)
+partstart=$(echo "$pss*$bps" | bc)
+beforesize=$(ls -lh "$img" | cut -d ' ' -f 5)
+loopback=$(losetup -f --show -o "$partstart" "$img")
+tune2fs_output=$(tune2fs -l "$loopback")
+currentsize=$(echo "$tune2fs_output" | grep '^Block count:' | tr -d ' ' | cut -d ':' -f 2)
+blocksize=$(echo "$tune2fs_output" | grep '^Block size:' | tr -d ' ' | cut -d ':' -f 2)
+
+logVerbose $LINENO diskinfo
+logVariables $LINENO img parted_output partname partnum partstart
+logVerbose $LINENO tune2fs_output currentsize blocksize
+logVariables $LINENO currentsize blocksize
+
+#Make sure filesystem is ok
+checkFilesystem
+
+if ! minsize=$(resize2fs -P "$loopback"); then
+	rc=$?
+	error $LINENO "resize2fs failed with rc $rc"
+	exit -10
+fi
+minsize=$(cut -d ':' -f 2 <<< "$minsize" | tr -d ' ')
+logVariables $LINENO minsize
+
+#Add some free space to the end of the filesystem
+extra_space=$(($currentsize - $minsize))
+logVariables $LINENO extra_space
+for space in 5000 1000 100; do
+  if [[ $extra_space -gt $space ]]; then
+    minsize=$(($minsize + $space))
+    break
+  fi
+done
+logVariables $LINENO minsize
+
+if [ "$dryrun" = true ]; then
+	info "Dry Run"
+	echo See $LOGFILE
+	exit -1
+else
+
+echo "============ Proceeding with Image Shrink ==========="
+
+#Shrink filesystem
+
+if [[ $currentsize -eq $minsize ]]; then
+  echo "Image already shrunk to smallest size"
+else
+	info "Shrinking filesystem"
+	resize2fs -M "$loopback" $minsize
+	if [[ $? != 0 ]]; then
+	  error $LINENO "resize2fs failed"
+	  losetup -d "$loopback"
+	  exit -12
+	else
+		#Check if we should expand rootfs on next boot
+		if [ "$should_skip_autoexpand" = false ]; then
+		  mountdir=$(mktemp -d)
+		  mount "$loopback" "$mountdir"
+			if [ $? -eq 0 ]; then
+				name=$(cat "$mountdir/etc/hostname")
+				info "setting image up to expand root partition at first boot"
+			  echo "Mount of root partition hostname:${name} succeeded!"
+				rm -f "$mountdir/var/lib/rock64/resized"
+				if [ ! -e "$mountdir/var/lib/rock64/resized" ]; then
+					info "removed /var/lib/rock64/resized, partition will resize at boot "
+				else
+					info "unable to remove /var/lib/rock64/resized, partition will NOT! resize at boot "
+				fi
+				umount "$mountdir"
+			else
+				echo "Crap! Mount Failed :(, Shrunk Partition is corrupt"
+				exit -1
+			fi
+		else
+		  info "Skipping autoexpanding process..."
+		fi
+	info "destroying the current loopback"
+	losetup -d "$loopback"
+	fi
+	sleep 1
+
+	#Shrink partition
+	partnewsize=$(($minsize * $blocksize))
+	newpartend=$(($partstart + $partnewsize))
+	logVariables $LINENO partnewsize newpartend
+	echo "Shrinking partition to minimal"
+	if ! parted -s -a minimal "$img" rm "$partnum"; then
+		rc=$?
+		error $LINENO "parted failed with rc $rc"
+		exit -13
+	fi
+	echo "resetting partition new size $partnewsize new end $newpartend"
+	if ! parted -s "$img" unit B mkpart primary "$partstart" "$newpartend" name "$partnum" linuxfs-root; then
+		rc=$?
+		error $LINENO "parted failed with rc $rc"
+		exit -14
+	fi
+
+	loopback=$(losetup -f --show -o "$partstart" "$img")
+	checkFilesystem
+
+  mountdir=$(mktemp -d)
+	mount "$loopback" "$mountdir"
+	if [ $? -eq 0 ]; then
+	  name=$(cat "$mountdir/etc/hostname")
+		echo "Mount of root partition hostname:${name} succeeded!"
+		umount "$mountdir"
+	else
+	  echo "Crap! Mount Failed :(, Shrunk Partition is corrupt"
+		exit -1
+	fi
+
+	echo "before partion shrink
+	echo  $diskinfo" | tail -n 1
+	newdiskinfo=$(fdisk -l $img)
+	echo "after after shrink:
+	echo $newdiskinfo" | tail -n 1
+	info "now doing a filesystem and mount check of root partition"
+
+fi  # end shrink
+
+if [ "$truncate" = true ]; then
+	info "Truncating Image of Unpartitioned Free Space"
+	newdiskinfo=$(fdisk -l $img)
+	endsector=$(echo "$newdiskinfo" | tail -n 1  | perl -pe 's/ +/\t/g' | cut -f 3)
+	# add 33 for gpt backup
+	newsize=$(echo "($endsector+1+33)*$bps" | bc)
+	info "truncating $img to sector $endsector which will give size of $(printf %.2f $(echo "$newsize/10^9" | bc -l)) GB"
+	echo "with command 'truncate --size=$newsize $img'"
+	echo -n "enter 'y' to proceed >"
+	read choice
+	if [ "$choice" = "y" ]; then
+		if ! truncate --size=$newsize $img; then
+		rc=$?
+		error $LINENO "error truncating image $rc"
+		exit -14
+	  fi
+	if ! sgdisk -e "$img"  > /dev/null; then
+	   rc=$?
+	   error $LINENO "error moving backup gpt table to end of image $rc"
+	   exit -14
+	 fi
+	 echo 'image truncation and gpt fix succeded'
+	else
+		echo "Image truncation aborted"
+	fi
+else
+	echo "Image will not be truncated"
+fi
+
+if [[ $gzip_compress == true ]]; then
+    info "Gzipping the shrunk image"
+    if [[ ! $(gzip -f9 "$img") ]]; then
+        img=$img.gz
+    fi
+fi
+
+aftersize=$(ls -lh "$img" | cut -d ' ' -f 5)
+logVariables $LINENO aftersize
+
+info "Shrunk $img from $beforesize to $aftersize"
+
+fi
