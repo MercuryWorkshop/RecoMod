@@ -176,7 +176,7 @@ shrink_table() {
   supress cat "$jankfile"
   rm -f "$jankfile"
 
-  supress sfdisk -N 1 --move-data "${loopdev}" <<<"+,-"
+  supress ./sfdisk.static -N 1 --move-data "${loopdev}" <<<"+,-"
 
 }
 truncate_image() {
