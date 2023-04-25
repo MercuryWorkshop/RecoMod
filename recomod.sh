@@ -57,6 +57,12 @@ configure_binaries() {
   else
     quit "Cannot find the required ssd_util script. Please make sure you're executing this script inside the directory it resides in" 1
   fi
+
+  if [ -f lib/sfdisk ]; then
+    SFDISK="${SCRIPT_DIR}/lib/sfdisk"
+  else
+    quit "Cannot find the required static sfdisk binary. Please make sure you're executing this script inside the directory it resides in" 1
+  fi
 }
 getopts() {
   load_shflags
@@ -176,7 +182,7 @@ shrink_table() {
   suppress cat "$jankfile"
   rm -f "$jankfile"
 
-  suppress ./sfdisk.static -N 1 --move-data "${loopdev}" <<<"+,-"
+  suppress "$SFDISK" -N 1 --move-data "${loopdev}" <<<"+,-"
 
 }
 truncate_image() {
