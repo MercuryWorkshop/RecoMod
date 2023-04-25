@@ -20,7 +20,7 @@ debug() {
   fi
 }
 
-supress() {
+suppress() {
   if [ "$FLAGS_debug" = "$FLAGS_TRUE" ] && [ "$FLAGS_quiet" = "$FLAGS_FALSE" ]; then
     $@
   else
@@ -136,8 +136,8 @@ strip_root() {
 shrink_table() {
   local buffer=5000000 #5mb buffer. keeps things from breaking too much
 
-  supress e2fsck -fy "${loopdev}p3"
-  supress resize2fs -M "${loopdev}p3"
+  suppress e2fsck -fy "${loopdev}p3"
+  suppress resize2fs -M "${loopdev}p3"
   local block_size
   block_size=$(tune2fs -l "${loopdev}p3" | grep -i "block size" | awk '{print $3}')
   local sector_size
@@ -173,10 +173,10 @@ shrink_table() {
   # if you're wondering why i don't use <<EOF, it causes changes not to apply
   # stupid fucking gnu devs
   script /dev/null -c "parted ${loopdev} resizepart 3 ${resized_end}B" <<<"Yes" >"$jankfile"
-  supress cat "$jankfile"
+  suppress cat "$jankfile"
   rm -f "$jankfile"
 
-  supress ./sfdisk.static -N 1 --move-data "${loopdev}" <<<"+,-"
+  suppress ./sfdisk.static -N 1 --move-data "${loopdev}" <<<"+,-"
 
 }
 truncate_image() {
@@ -208,10 +208,10 @@ main() {
   debug "Setup loopback at $loopdev"
 
   if [ "$FLAGS_keep_verity" = "$FLAGS_FALSE" ]; then
-    supress "$SSD_UTIL" --remove_rootfs_verification -i "$loopdev" --partitions 4
+    suppress "$SSD_UTIL" --remove_rootfs_verification -i "$loopdev" --partitions 4
   fi
 
-  supress "$SSD_UTIL" --remove_rootfs_verification --no_resign_kernel -i "$loopdev" --partitions 2
+  suppress "$SSD_UTIL" --remove_rootfs_verification --no_resign_kernel -i "$loopdev" --partitions 2
 
   # for good measure
   sync
@@ -278,16 +278,16 @@ if [ "$0" = "$BASH_SOURCE" ]; then
   fi
 
   # breaks without this
-  if supress which sysctl; then
+  if suppress which sysctl; then
     orig_sysctl=$(sysctl --values fs.protected_regular)
-    supress sysctl -w fs.protected_regular=0
+    suppress sysctl -w fs.protected_regular=0
   fi
 
   configure_binaries
   main
 
-  if supress which sysctl; then
-    supress sysctl -w "fs.protected_regular=$orig_sysctl"
+  if suppress which sysctl; then
+    suppress sysctl -w "fs.protected_regular=$orig_sysctl"
   fi
   leave 0
 fi
