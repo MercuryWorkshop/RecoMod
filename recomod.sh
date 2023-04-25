@@ -172,7 +172,7 @@ shrink_table() {
   # if you're wondering why i don't use --script, it causes changes to not apply
   # if you're wondering why i don't use <<EOF, it causes changes not to apply
   # stupid fucking gnu devs
-  script /dev/null -c "parted ${loopdev} -f resizepart 3 ${resized_end}B" <<<"Yes" >"$jankfile"
+  script /dev/null -c "parted ${loopdev} resizepart 3 ${resized_end}B" <<<"Yes" >"$jankfile"
   supress cat "$jankfile"
   rm -f "$jankfile"
 
