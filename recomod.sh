@@ -277,7 +277,7 @@ main() {
     shrink_table
   fi
 
-  losetup -D "$loopdev"
+  losetup -d "$loopdev"
 
   sync
   sleep 0.2
