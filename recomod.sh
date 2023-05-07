@@ -13,33 +13,37 @@ quit() {
   echo -e "\x1b[31mExiting: $1\x1b[39;49m" >&2
   exit "$2"
 }
+fbool(){
+  [ "$(eval echo $(echo \"\$FLAGS_$1\"))" = "$FLAGS_TRUE" ]
+}
+should_debug(){
+  fbool debug && ! fbool quiet
+}
 
 debug() {
-  if [ "$FLAGS_debug" = "$FLAGS_TRUE" ] && [ "$FLAGS_quiet" = "$FLAGS_FALSE" ]; then
+  if should_debug; then
     echo -e "\x1B[33mDebug: $*\x1b[39;49m" >&2
   fi
 }
 
 suppress() {
-  if [ "$FLAGS_debug" = "$FLAGS_TRUE" ] && [ "$FLAGS_quiet" = "$FLAGS_FALSE" ]; then
+  if should_debug; then
     $@
   else
     $@ >/dev/null 2>&1
   fi
 }
 suppress_err() {
-  if [ "$FLAGS_debug" = "$FLAGS_TRUE" ] && [ "$FLAGS_quiet" = "$FLAGS_FALSE" ]; then
+  if should_debug; then
     $@
   else
     $@ 2>/dev/null
   fi
 }
-fbool(){
-  [ "$(eval echo $(echo \"\$FLAGS_$1\"))" = "$FLAGS_TRUE" ]
-}
+
 
 info() {
-  if [ "$FLAGS_quiet" = "$FLAGS_FALSE" ]; then
+  if ! fbool quiet; then
     echo -e "\x1B[32mInfo: $*\x1b[39;49m"
   fi
 }
@@ -61,7 +65,7 @@ configure_binaries() {
     quit "Cannot find the required ssd_util script. Please make sure you're executing this script inside the directory it resides in" 1
   fi
 
-  if [ "$FLAGS_strip" = "$FLAGS_TRUE" ]; then
+  if fbool strip; then
     if suppress which sfdisk && [[ "$(sfdisk -v)" == "sfdisk from util-linux 2.38."* ]]; then
       debug "using machine's sfdisk"
       SFDISK=$(which sfdisk)
@@ -109,6 +113,12 @@ getopts() {
   FLAGS "$@" || leave $?
   eval set -- "$FLAGS_ARGV"
 
+
+  if fbool halcyon && (fbool strip || fbool minimal); then
+    quit "--halcyon and --strip/--minimal are incompatible" 1
+  fi
+
+
   if [ -z "$FLAGS_image" ]; then
     flags_help || :
     leave 1
@@ -135,6 +145,7 @@ EOF
     chmod +x "$ROOT/usr/sbin/wipe_disk"
     sed -i "s/# Check if we enable ext4 features\./STATE_DEV=\/dev\/mmcblk0p1/"  "$ROOT/sbin/chromeos_startup.sh"
     sed -i "s/stable/dev/" "$ROOT/etc/lsb-release"
+    >"$ROOT/usr/recokit/halcyon_enabled"
   fi
 
 }
@@ -265,12 +276,12 @@ main() {
   mount "${loopdev}p3" "$ROOT"
   debug "Mounted root at $ROOT"
 
-  if [ "$FLAGS_strip" = "$FLAGS_TRUE" ]; then
+  if fbool strip; then
     info "Stripping uneeded components"
     strip_root
   fi
 
-  if [ "$FLAGS_minimal" = "$FLAGS_TRUE" ]; then
+  if fbool minimal; then
     info "Installing minimal toolkit"
     patch_root_minimal
   else
@@ -278,7 +289,7 @@ main() {
     patch_root_complete
   fi
 
-  if [ "$FLAGS_cleanup" = "$FLAGS_FALSE" ]; then
+  if ! fbool cleanup; then
     quit "Patching successful. skipping cleanup, please do it yourself!" 0
   fi
 
@@ -287,7 +298,7 @@ main() {
 
   umount "$ROOT"
 
-  if [ "$FLAGS_strip" = "$FLAGS_TRUE" ]; then
+  if fbool strip; then
     info "Shrinking GPT table"
     shrink_table
   fi
@@ -296,7 +307,7 @@ main() {
 
   sync
   sleep 0.2
-  if [ "$FLAGS_strip" = "$FLAGS_TRUE" ]; then
+  if fbool strip; then
     truncate_image "$bin"
   fi
   sync

@@ -51,9 +51,8 @@ sever_streams(){
 }
 
 boot_cros(){
-    mount /dev/mmcblk0p1 $USB_MNT/mnt/stateful_partition
     pkill -f frecon
-    exec switch_root $USB_MNT /sbin/init > $tty
+    exec switch_root "$USB_MNT" /sbin/init
 
     echo "something went wrong!"
     sleep 1d # this should never be reached
@@ -79,5 +78,5 @@ export TERM
 . "$KIT/main.sh"
 
 # failsafe in case
-echo "the kit exited!"
+echo "the kit exited! this should never happen!"
 tail -f /dev/null

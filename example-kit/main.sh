@@ -37,18 +37,24 @@ pick_chroot_dest(){
   esac
 }
 
-pick "Pick the type of shell you want" \
-  "Initramfs busybox sh" \
-  "Chroot bash shell" \
-  "SWITCH_ROOT!!!"
-exec /bin/busybox sh 
-case $CHOICE in
-  1)
-    CHROOT= 
-    exec /bin/busybox sh ;;
-  2) pick_chroot_dest ;;
-  3) boot_cros
-  *) echo "invalid choice"
-esac
+while true; do
+  pick "Choose action" \
+    "Chroot bash shell (make modifications to the system)" \
+    "Initramfs busybox sh (debugging purposes, dangerous)" \
+    "Activate halcyon environment"
 
-# exec $USB_MNT/bin/bash
+  case $CHOICE in
+    1) echo "Currently unimplemented";pick_chroot_dest ;;
+    2)
+      CHROOT= 
+      exec /bin/busybox sh ;;
+    3)
+    if [ -f "$KIT/halcyon_enabled" ]; then
+      boot_cros
+    else
+      echo "Cannot activate halcyon, --halcyon was not passed when building this image"
+    fi;;
+    *) echo "invalid choice" ;;
+  esac
+done
+
