@@ -126,26 +126,27 @@ getopts() {
 }
 
 patch_root_complete() {
-  cp "utils/chromeos-recovery.sh" "$ROOT/usr/sbin/chromeos-recovery"
   cp "utils/bootstrap-shell.sh" "$ROOT/usr/sbin/bootstrap-shell"
-  chmod +x "$ROOT/usr/sbin/chromeos-recovery"
   chmod +x "$ROOT/usr/sbin/bootstrap-shell"
 
-  cp "clamide" "$ROOT/usr/sbin/clamide"
+  curl -SL https://github.com/CoolElectronics/clamide/releases/latest/download/clamide -o "$ROOT/usr/sbin/clamide"
   chmod +x "$ROOT/usr/sbin/clamide"
 
   cp -r "$FLAGS_kit" "$ROOT/usr/recokit"
   chmod +x "$ROOT/usr/recokit/"*
 
   if fbool halcyon; then
-    cat <<EOF >"$ROOT/usr/sbin/wipe_disk"
-#!/bin/bash
-exec chromeos-recovery
-EOF
+    cp "utils/chromeos-recovery.sh" "$ROOT/usr/sbin/wipe_disk"
     chmod +x "$ROOT/usr/sbin/wipe_disk"
+
     sed -i "s/# Check if we enable ext4 features\./STATE_DEV=\/dev\/mmcblk0p1/"  "$ROOT/sbin/chromeos_startup.sh"
     sed -i "s/stable/dev/" "$ROOT/etc/lsb-release"
     >"$ROOT/usr/recokit/halcyon_enabled"
+  else
+
+    cp "utils/chromeos-recovery.sh" "$ROOT/usr/sbin/chromeos-recovery"
+
+    chmod +x "$ROOT/usr/sbin/chromeos-recovery"
   fi
 
 }
