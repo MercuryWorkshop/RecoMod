@@ -16,5 +16,5 @@ clamide -p 1 --syscall execve "str:$USB_MNT/usr/sbin/bootstrap-shell"
 echo "cleaning up from recovery"
 spinner=$(pgrep sh | tail -1)
 kill -9 $spinner
-pkill -f frecon-lite
+pkill -f frecon
 pkill -f tail # the tail in question would typically stop pid1 from exiting. it is useless now.

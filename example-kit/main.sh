@@ -40,12 +40,14 @@ pick_chroot_dest(){
 pick "Pick the type of shell you want" \
   "Initramfs busybox sh" \
   "Chroot bash shell" \
-
+  "SWITCH_ROOT!!!"
+exec /bin/busybox sh 
 case $CHOICE in
   1)
     CHROOT= 
     exec /bin/busybox sh ;;
   2) pick_chroot_dest ;;
+  3) boot_cros
   *) echo "invalid choice"
 esac
 

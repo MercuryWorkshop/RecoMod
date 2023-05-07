@@ -34,6 +34,9 @@ suppress_err() {
     $@ 2>/dev/null
   fi
 }
+fbool(){
+  [ "$(eval echo $(echo \"\$FLAGS_$1\"))" = "$FLAGS_TRUE" ]
+}
 
 info() {
   if [ "$FLAGS_quiet" = "$FLAGS_FALSE" ]; then
@@ -100,6 +103,8 @@ getopts() {
 
   DEFINE_boolean strip "$FLAGS_FALSE" \
     "reduce the size of the recovery image by deleting everything that isn't neccessary. The image will no longer be able to recover chrome os" ""
+  DEFINE_boolean halcyon "$FLAGS_FALSE" \
+    "enable E-HALCYON patches. if you don't know what that means, leave this option alone" ""
 
   FLAGS "$@" || leave $?
   eval set -- "$FLAGS_ARGV"
@@ -121,6 +126,16 @@ patch_root_complete() {
 
   cp -r "$FLAGS_kit" "$ROOT/usr/recokit"
   chmod +x "$ROOT/usr/recokit/"*
+
+  if fbool halcyon; then
+    cat <<EOF >"$ROOT/usr/sbin/wipe_disk"
+#!/bin/bash
+exec chromeos-recovery
+EOF
+    chmod +x "$ROOT/usr/sbin/wipe_disk"
+    sed -i "s/# Check if we enable ext4 features\./STATE_DEV=\/dev\/mmcblk0p1/"  "$ROOT/sbin/chromeos_startup.sh"
+    sed -i "s/stable/dev/" "$ROOT/etc/lsb-release"
+  fi
 
 }
 patch_root_minimal() {
@@ -318,6 +333,7 @@ THE SCRIPT WILL CONTINUE TO RUN, BUT IT MAY NOT WORK"
     orig_sysctl=$(sysctl --values fs.protected_regular)
     suppress sysctl -w fs.protected_regular=0
   fi
+
 
   configure_binaries
   main
