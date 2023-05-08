@@ -136,6 +136,12 @@ patch_root_complete() {
   chmod +x "$ROOT/usr/recokit/"*
 
   if fbool halcyon; then
+    cat <<EOF >"$ROOT/usr/sbin/chromeos-recovery"
+#!/bin/bash
+echo "you messed up bruh!"
+tail -f /dev/null
+EOF
+
     cp "utils/chromeos-recovery.sh" "$ROOT/usr/sbin/wipe_disk"
     chmod +x "$ROOT/usr/sbin/wipe_disk"
 
