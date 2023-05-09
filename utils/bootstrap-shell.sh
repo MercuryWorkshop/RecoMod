@@ -69,8 +69,6 @@ exec 2>${TTY}
 attach_streams $TTY
 printf "\033]box:color=0x${BACKGROUND};size=10000,10000\a" > $TTY
 clear
-echo "bootstrap complete"
-sleep 0.2
 
 
 export LD_LIBRARY_PATH="$USB_MNT/lib:$USB_MNT/lib64:$USB_MNT/usr/lib:$USB_MNT/usr/lib64"
