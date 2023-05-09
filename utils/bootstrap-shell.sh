@@ -4,7 +4,7 @@
 
 USB_MNT=/usb
 KIT=$USB_MNT/usr/recokit
-BACKGROUND=0x1e1e2e
+BACKGROUND=1E1E2E
 init_frecon(){
   # taken from messages.sh
   local resolution="$(frecon-lite --print-resolution)"

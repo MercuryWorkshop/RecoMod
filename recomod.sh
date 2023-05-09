@@ -65,6 +65,11 @@ configure_binaries() {
     quit "Cannot find the required ssd_util script. Please make sure you're executing this script inside the directory it resides in" 1
   fi
 
+  if [ ! -f "${SCRIPT_DIR}/lib/clamide" ] && ! fbool minimal; then
+    info "Downloading clamide into lib/"
+    curl -SL https://github.com/CoolElectronics/clamide/releases/latest/download/clamide -o "${SCRIPT_DIR}/lib/clamide" 
+  fi
+
   if fbool strip; then
     if suppress which sfdisk && [[ "$(sfdisk -v)" == "sfdisk from util-linux 2.38."* ]]; then
       debug "using machine's sfdisk"
@@ -129,23 +134,38 @@ patch_root_complete() {
   cp "utils/bootstrap-shell.sh" "$ROOT/usr/sbin/bootstrap-shell"
   chmod +x "$ROOT/usr/sbin/bootstrap-shell"
 
-  curl -SL https://github.com/CoolElectronics/clamide/releases/latest/download/clamide -o "$ROOT/usr/sbin/clamide"
+  cp lib/clamide "$ROOT/usr/sbin/clamide"
   chmod +x "$ROOT/usr/sbin/clamide"
 
   cp -r "$FLAGS_kit" "$ROOT/usr/recokit"
   chmod +x "$ROOT/usr/recokit/"*
 
   if fbool halcyon; then
+    info "Installing halcyon patches"
     cat <<EOF >"$ROOT/usr/sbin/chromeos-recovery"
 #!/bin/bash
 echo "you messed up bruh!"
 tail -f /dev/null
 EOF
+    # snippet sourced from https://github.com/sebanc/brunch/blob/r107/brunch-patches/40-custom_encryption.sh, licensed under GPLv3
+    cat <<EOF >"$ROOT/usr/share/cros/startup_utils.sh"
+mount_var_and_home_chronos() {
+  mkdir -p /mnt/stateful_partition/encrypted/var
+  mount -n --bind /mnt/stateful_partition/encrypted/var /var || return 1
+  mkdir -p /mnt/stateful_partition/encrypted/chronos
+  mount -n --bind /mnt/stateful_partition/encrypted/chronos /home/chronos || return 1
+}
 
+umount_var_and_home_chronos() {
+  umount /home/chronos
+  umount /var
+}
+EOF
     cp "utils/chromeos-recovery.sh" "$ROOT/usr/sbin/wipe_disk"
     chmod +x "$ROOT/usr/sbin/wipe_disk"
 
     sed -i "s/# Check if we enable ext4 features\./STATE_DEV=\/dev\/mmcblk0p1/"  "$ROOT/sbin/chromeos_startup.sh"
+    
     sed -i "s/stable/dev/" "$ROOT/etc/lsb-release"
     >"$ROOT/usr/recokit/halcyon_enabled"
   else
