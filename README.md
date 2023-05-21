@@ -4,12 +4,15 @@
 
 ## What is this?
 RecoMod is a script that will install a custom utility toolkit into a standard chromeOS recovery image.
-
+This is essentially the spiritual successor to MrChromebox's fixflags images and is useful for getting past certain bricks, and performing debugging and utility actions on the chromebook, especially if you have RW_LEGACY bios installed.
 For more information, check out the [writeup](https://coolelectronics.me/blog/breaking-cros-4)
-## Why would I use this?
-This is useful for easily getting past certain chromebook bricks and debugging various issues that can arise when using chromebooks in certain ways. It's a nice tool to have around when you're tinkering
+## What can it do?
+[insert image 1]
+[insert image 2]
+
+Note that only x86_64 chromebooks are supported, with arm images needing the --minimal flag to work (this will not show a GUI, just perform certain actions like fixing the gbb flags)
 ## How do I use it?
-The build script must be ran on linux. If you don't have linux, a VM can be used. WSL may work but is not officially supported.
+The build script must be ran on linux. If you don't have linux, a VM can be used. WSL may work but is not officially supported. Crostini probably won't work. Crosh
 
 First, grab the script itself.
 ```

@@ -108,8 +108,8 @@ getopts() {
   DEFINE_boolean quiet "$FLAGS_FALSE" \
     "do not print anything to stdout" "q"
 
-  DEFINE_boolean keep-verity "$FLAGS_FALSE" \
-    "don't disable dm-verity on the kernel that will be installed. disabling this will make the image slower to launch, but if the image is installed it will only be able to boot in developer mode" ""
+  DEFINE_boolean disable-verity "$FLAGS_TRUE" \
+    "disable dm-verity on the kernel that will be installed during recovery. enabling this will make the image faster to launch, but if the image is installed through recovery it will only be able to boot in developer mode" ""
 
   DEFINE_boolean minimal "$FLAGS_FALSE" \
     "build a non interactive version of the toolkit. IF YOU HAVE AN ARM-BASED CHROMEBOOK, YOU MUST ENABLE THIS" ""
@@ -325,7 +325,7 @@ main() {
   losetup -P "$loopdev" "$bin"
   debug "Setup loopback at $loopdev"
 
-  if [ "$FLAGS_keep_verity" = "$FLAGS_FALSE" ]; then
+  if fbool disable-verity; then
     suppress "$SSD_UTIL" --remove_rootfs_verification -i "$loopdev" --partitions 4
   fi
 
