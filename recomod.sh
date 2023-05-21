@@ -3,6 +3,13 @@ SCRIPT_DIR=$(dirname "$0")
 SCRIPT_DIR=${SCRIPT_DIR:-"."}
 . "$SCRIPT_DIR/lib/common_minimal.sh"
 
+
+cleanup(){
+  umount "$ROOT" || :
+  losetup -d "$loopdev"
+
+}
+
 leave() {
   trap - EXIT
   exit "$1"
@@ -129,6 +136,22 @@ getopts() {
     leave 1
   fi
 }
+# https://chromium.googlesource.com/chromiumos/docs/+/master/lsb-release.md
+lsbval() {
+  local key="$1"
+  local lsbfile="${2:-/etc/lsb-release}"
+
+  if ! echo "${key}" | grep -Eq '^[a-zA-Z0-9_]+$'; then
+    return 1
+  fi
+
+  sed -E -n -e \
+    "/^[[:space:]]*${key}[[:space:]]*=/{
+      s:^[^=]+=[[:space:]]*::
+      s:[[:space:]]+$::
+      p
+    }" "${lsbfile}"
+}
 
 patch_root_complete() {
   cp "utils/bootstrap-shell.sh" "$ROOT/usr/sbin/bootstrap-shell"
@@ -140,13 +163,31 @@ patch_root_complete() {
   cp -r "$FLAGS_kit" "$ROOT/usr/recokit"
   chmod +x "$ROOT/usr/recokit/"*
 
+
+  mv "$ROOT/usr/sbin/chromeos-recovery" "$ROOT/usr/sbin/chromeos-recovery.old"
+  cp "utils/chromeos-recovery.sh" "$ROOT/usr/sbin/chromeos-recovery"
+
+  chmod +x "$ROOT/usr/sbin/chromeos-recovery"
+  chmod +x "$ROOT/usr/sbin/chromeos-recovery.old"
+
   if fbool halcyon; then
-    info "Installing halcyon patches"
-    cat <<EOF >"$ROOT/usr/sbin/chromeos-recovery"
+    local milestone=$(lsbval CHROMEOS_RELEASE_CHROME_MILESTONE "$ROOT/etc/lsb-release")
+    if (( milestone > 107 )); then
+      cleanup
+      quit "You are trying to use halcyon on an image of version R${milestone}. Due to a change in chromeos_startup.sh, this is not supported. Please download an R107 image instead" 1
+    fi
+    if (( milestone != 107 )); then
+      info "WARNING: ${bin} is not an R107 image. Proceeding anyway, but remember that R${milestone} is untested"
+    fi
+
+    info "Installing halcyon patches onto an R${milestone} image"
+    cat <<EOF >"$ROOT/usr/sbin/wipe_disk"
 #!/bin/bash
-echo "you messed up bruh!"
-tail -f /dev/null
+echo "E mode activated"
+exec /usr/sbin/chromeos-recovery
 EOF
+    chmod +x "$ROOT/usr/sbin/wipe_disk"
+
     # snippet sourced from https://github.com/sebanc/brunch/blob/r107/brunch-patches/40-custom_encryption.sh, licensed under GPLv3
     cat <<EOF >"$ROOT/usr/share/cros/startup_utils.sh"
 mount_var_and_home_chronos() {
@@ -161,18 +202,12 @@ umount_var_and_home_chronos() {
   umount /var
 }
 EOF
-    cp "utils/chromeos-recovery.sh" "$ROOT/usr/sbin/wipe_disk"
-    chmod +x "$ROOT/usr/sbin/wipe_disk"
-
     sed -i "s/# Check if we enable ext4 features\./STATE_DEV=\/dev\/mmcblk0p1/"  "$ROOT/sbin/chromeos_startup.sh"
     
     sed -i "s/stable/dev/" "$ROOT/etc/lsb-release"
+
+    sed -i "s/end script/sleep 2;tpm_manager_client take_ownership;restart cryptohomed;sleep 1\nend script/" "$ROOT/etc/init/ui.conf"
     >"$ROOT/usr/recokit/halcyon_enabled"
-  else
-
-    cp "utils/chromeos-recovery.sh" "$ROOT/usr/sbin/chromeos-recovery"
-
-    chmod +x "$ROOT/usr/sbin/chromeos-recovery"
   fi
 
 }

@@ -74,6 +74,7 @@ clear
 export LD_LIBRARY_PATH="$USB_MNT/lib:$USB_MNT/lib64:$USB_MNT/usr/lib:$USB_MNT/usr/lib64"
 export TERM
 . "$KIT/main.sh"
+main
 
 # failsafe in case
 echo "the kit exited! this should never happen!"
