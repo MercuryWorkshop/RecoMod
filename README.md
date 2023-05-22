@@ -4,9 +4,9 @@
 
 ## What is this?
 RecoMod is a script that will install a custom utility toolkit into a standard chromeOS recovery image.
-This is essentially the spiritual successor to MrChromebox's fixflags images and is useful for getting past certain bricks, and performing debugging and utility actions on the chromebook, especially if you have RW_LEGACY bios installed.
+This is essentially the spiritual successor to MrChromebox's fixflags images and is useful for getting past certain bricks, and performing debugging and utility actions on the chromebook, especially if you have RW_LEGACY bios installed. If you find yourself in a situation where you either can't boot chromeos from the internal storage or it would be annoying to, this can help you perform whatever actions you need to.
 
-For more information on the fun little details, check out the [writeup](https://coolelectronics.me/blog/breaking-cros-4)
+This project utilizes MrChromebox's RW_LEGACY and UEFI roms. For more information on the fun little details, check out the [writeup](https://coolelectronics.me/blog/breaking-cros-4)
 ## What can it do?
 Making sure you're in devmode, when you plug in a recovery image patched with this tool it will boot into a utility menu
 

@@ -3,6 +3,8 @@ SCRIPT_DIR=$(dirname "$0")
 SCRIPT_DIR=${SCRIPT_DIR:-"."}
 . "$SCRIPT_DIR/lib/common_minimal.sh"
 
+FUS_SOURCES=https://raw.githubusercontent.com/MrChromebox/scripts/master/sources.sh
+
 
 cleanup(){
   umount "$ROOT" || :
@@ -72,9 +74,26 @@ configure_binaries() {
     quit "Cannot find the required ssd_util script. Please make sure you're executing this script inside the directory it resides in" 1
   fi
 
-  if [ ! -f "${SCRIPT_DIR}/lib/clamide" ] && ! fbool minimal; then
+  if ! fbool minimal; then
     info "Downloading clamide into lib/"
-    curl -SL https://github.com/CoolElectronics/clamide/releases/latest/download/clamide -o "${SCRIPT_DIR}/lib/clamide" 
+    curl -sL https://github.com/CoolElectronics/clamide/releases/latest/download/clamide -o "${SCRIPT_DIR}/lib/clamide" 
+  fi
+
+  if fbool rw_legacy; then
+    info "Downloading latest rw_legacy payloads into lib/rwl"
+    mkdir lib/rwl || :
+    rwlegacy_source="$(. <(curl -Ls "$FUS_SOURCES"); echo $rwlegacy_source)"
+    files="$(. <(curl -Ls "$FUS_SOURCES"); env | grep rwl_altfw)"
+
+    while read file; do
+      key=${file%%=*}
+      val=${file##*=}
+      debug "Downloading $key: $val"
+      curl -sL "${rwlegacy_source}${file}" -o "lib/rwl/$val"
+    done <<< "$files"
+  fi
+  if fbool fullrom; then
+    quit "Sorry! I haven't gotten around to adding in fullrom support yet. Check back later" 1
   fi
 
   if fbool strip; then
@@ -116,6 +135,12 @@ getopts() {
 
   DEFINE_boolean cleanup "$FLAGS_TRUE" \
     "clean up gracefully after the script finishes. disable this for debugging purposes" ""
+
+  DEFINE_boolean rw_legacy "$FLAGS_TRUE" \
+    "download files from mrchromebox.tech for use in the rw_legacy firmware configuration menu" ""
+  DEFINE_boolean fullrom "$FLAGS_FALSE" \
+    "download files from mrchromebox.tech for use in the full uefi rom firmware configuration menu. This will take up a lot of space, only do this if you know you need it." ""
+
 
   DEFINE_boolean strip "$FLAGS_FALSE" \
     "reduce the size of the recovery image by deleting everything that isn't neccessary. The image will no longer be able to recover chrome os" ""
@@ -208,6 +233,14 @@ EOF
 
     sed -i "s/end script/sleep 2;tpm_manager_client take_ownership;restart cryptohomed;sleep 1\nend script/" "$ROOT/etc/init/ui.conf"
     >"$ROOT/usr/recokit/halcyon_enabled"
+  fi
+
+  if fbool rw_legacy; then
+    tar -czvf "$ROOT/usr/recokit/rwl.tar.gz" -C "lib/rwl" .
+    >"$ROOT/usr/recokit/rw_legacy_enabled"
+  fi
+  if fbool fullrom; then
+    >"$ROOT/usr/recokit/fullrom_enabled"
   fi
 
 }
