@@ -50,15 +50,6 @@ sever_streams(){
   close "$TTY_FD"
 }
 
-boot_cros(){
-    pkill -f frecon
-    exec switch_root "$USB_MNT" /sbin/init
-
-    echo "something went wrong!"
-    sleep 1d # this should never be reached
-}
-
-
 
 init_frecon
 TTY=/run/frecon/vt0

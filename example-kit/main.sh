@@ -203,16 +203,20 @@ pick_chroot_dest() {
   pick "Choose the destination you want to chroot into" \
     "Local USB image"
     "Internal storage (A system)" \
-    "Internal storage (B system)" \
-  case $CHOICE in
-  1) CHROOT=$USB_MNT ;;
-  2) 
-     # first try to mount as RW, if it fails RO mount
-     mount ${ROOTADEV} /mmcmnt || mount -o ro ${ROOTADEV} /mmcmnt
-     CHROOT=/mmcmnt ;;
-  3)
+    "Internal storage (B system)" 
+  case "$CHOICE" in
+    1) 
+      CHROOT=$USB_MNT 
+      ;;
+    2) 
+      # first try to mount as RW, if it fails RO mount
+      mount ${ROOTADEV} /mmcmnt || mount -o ro ${ROOTADEV} /mmcmnt
+      CHROOT=/mmcmnt
+      ;;
+    3)
      mount ${ROOTBDEV} /mmcmnt || mount -o ro ${ROOTBDEV} /mmcmnt
-     CHROOT=/mmcmnt ;;
+     CHROOT=/mmcmnt
+     ;;
   esac
 }
 pick_parenting_type() {
@@ -243,12 +247,14 @@ spawn_shell() {
   umount /mmcmnt || :
 }
 find_mmcdevs() {
-
-  USBDEV=$(. /init; strip_partition $(asusb rootdev))
+  USBROOTDEV=$(asusb rootdev)
+  USBDEV=$(. /init; strip_partition "$USBROOTDEV")
   # me when i source the literal init point
   # why do we source inside a subshell? it breaks otherwise of course
 
-  BDEV=/dev/mmcblk0
+  BDEV=$(. /usr/sbin/write_gpt.sh;. /usr/share/misc/chromeos-common.sh;load_base_vars;get_fixed_dst_drive)
+  # while hard to read, sourcing within a subshell is quite elegant as it doesn't clog up names
+
   STATEDEV=${BDEV}p1
   ROOTADEV=${BDEV}p3
   ROOTBDEV=${BDEV}p5
@@ -277,8 +283,8 @@ powerwash() {
     ;;
   3)
     message "Starting Secure Wipe"
-    clear
-    dd if=/dev/zero | pv | dd of="$STATEDEV" 
+    echo -en "\n\n\n"
+    dd if=/dev/zero | (asusb /usr/sbin/pv) | dd of="$STATEDEV" 
     message "Secure Wipe complete"
     ;;
   esac
@@ -429,7 +435,26 @@ install_rw_legacy(){
 
 }
 install_fullrom(){
-  
+ message "not implemented"
+}
+
+boot_halcyon(){
+
+  # /lib/recovery_init.sh will disable the loading of modules under certain conditions.
+  # this is bad as wifi won't be able to load, and we kinda need wifi to get past OOBE
+  if [ $(cat /proc/sys/kernel/modules_disabled) = 0 ]; then
+    mount "$HALCYON_STATEDEV" /stateful
+    rm -rf /stateful/home/.shadow
+    umount /stateful
+          
+    pkill -f frecon
+    exec switch_root "$HALCYON_MNT" /sbin/init
+
+    echo "something went wrong!"
+    tail -f /dev/null
+  else
+    message "Cannot activate halcyon, E mode was not activated"
+  fi
 }
 
 main() {
@@ -503,15 +528,45 @@ main() {
       ;;
     9)
       if [ -f "$KIT/halcyon_enabled" ]; then
-        if [ $(cat /proc/sys/kernel/modules_disabled) = 0 ]; then
+        pick "Choose action" \
+          "Boot halcyon (tethered, usb must stay in always)" \
+          "Install halcyon semi-tethered (do once before booting semi-tethered)" \
+          "Boot halcyon (semi-tethered, usb must stay in during boot, can be removed after)"
 
-          mount "$STATEDEV" /stateful
-          rm -rf /stateful/home/.shadow
-          umount /stateful
-          boot_cros
-        else
-          message "Cannot activate halcyon, E mode was not activated"
-        fi
+        case "$CHOICE" in
+          1)
+            HALCYON_STATEDEV=$STATEDEV
+            HALCYON_MNT=$USB_MNT
+            boot_halcyon
+            ;;
+          2) 
+            message "Installing halcyon from $USBROOTDEV to $ROOTADEV. This may take a while"
+            echo -en "\n\n\n"
+
+            # curiously i have to specify the full path?
+            dd if=$USBROOTDEV | (asusb /usr/sbin/pv) | dd of=$ROOTADEV
+            message "Halcyon sucessfully installed"
+            ;;
+          3) 
+            mount ${ROOTADEV} /mmcmnt || mount -o ro ${ROOTADEV} /mmcmnt
+            HALCYON_STATEDEV=$STATEDEV
+            HALCYON_MNT=/mmcmnt
+            (
+              # steal the newroot remounting from the initramfs code instead of writing it ourselves.
+              # this will bindmount /proc, /sys, and /dev on /mmcmnt and create the needed tmpfses
+              # as usual, do all sourcing inside a subshell
+
+              . /init
+              . /lib/recovery_init.sh
+              USB_MNT=/mmcmnt
+              NEWROOT_MNT=/mmcmnt
+              setup_install_mounts
+              # the odd part is that switch_root is supposed to do this for me? i guess busybox cheaped out
+            )
+            boot_halcyon
+            ;;
+        esac
+
       else
         message "Cannot activate halcyon, --halcyon was not passed when building this image"
       fi

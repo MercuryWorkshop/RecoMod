@@ -77,6 +77,12 @@ configure_binaries() {
   if ! fbool minimal; then
     info "Downloading clamide into lib/"
     curl -sL https://github.com/CoolElectronics/clamide/releases/latest/download/clamide -o "${SCRIPT_DIR}/lib/clamide" 
+
+    info "Downloading pv into lib/"
+    if ! [ -f lib/pv ]; then
+      curl -sL https://github.com/mosajjal/binary-tools/raw/master/x64/pv -o lib/pv
+    fi
+
   fi
 
   if fbool rw_legacy; then
@@ -184,6 +190,10 @@ patch_root_complete() {
 
   cp lib/clamide "$ROOT/usr/sbin/clamide"
   chmod +x "$ROOT/usr/sbin/clamide"
+
+  # we don't neeeeeed pv, but it looks cool
+  cp lib/pv "$ROOT/usr/sbin/pv"
+  chmod +x "$ROOT/usr/sbin/pv"
 
   cp -r "$FLAGS_kit" "$ROOT/usr/recokit"
   chmod +x "$ROOT/usr/recokit/"*
