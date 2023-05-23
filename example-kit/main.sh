@@ -443,6 +443,11 @@ boot_halcyon(){
   # /lib/recovery_init.sh will disable the loading of modules under certain conditions.
   # this is bad as wifi won't be able to load, and we kinda need wifi to get past OOBE
   if [ $(cat /proc/sys/kernel/modules_disabled) = 0 ]; then
+    
+    asusb vpd -i RW_VPD -s block_devmode=0
+    asusb vpd -i RW_VPD -s check_enrollment=0
+    # just so people won't iT dOeSnT wOrK
+
     mount "$HALCYON_STATEDEV" /stateful
     rm -rf /stateful/home/.shadow
     umount /stateful
@@ -450,6 +455,7 @@ boot_halcyon(){
     pkill -f frecon
     exec switch_root "$HALCYON_MNT" /sbin/init
 
+    # this really isn't reachable but whatever any failsafe is better than none
     echo "something went wrong!"
     tail -f /dev/null
   else
@@ -544,7 +550,19 @@ main() {
             echo -en "\n\n\n"
 
             # curiously i have to specify the full path?
-            dd if=$USBROOTDEV | (asusb /usr/sbin/pv) | dd of=$ROOTADEV
+            dd if=$USBROOTDEV status=none | (asusb /usr/sbin/pv) | dd of=$ROOTADEV status=none
+            
+            message "Installing devmode kernels to $BDEV. This may take a while"
+            echo -en "\n\n\n"
+
+
+            # here we install the recovery kernel too
+            # we don't intend on booting from it but this will trip `verify_install_kernel` in recovery_init.sh
+            # bypassing the 5 minute wait as long as verity was disabled when building the image
+            USBDEV_WITH_SUFFIX=$(echo $USBROOTDEV | sed "s/.$//")
+            dd if=${USBDEV_WITH_SUFFIX} status=none | (asusb /usr/sbin/pv) | dd of=${BDEV}p2 status=none
+            dd if=${USBDEV_WITH_SUFFIX} status=none | (asusb /usr/sbin/pv) | dd of=${BDEV}p4 status=none
+
             message "Halcyon sucessfully installed"
             ;;
           3) 

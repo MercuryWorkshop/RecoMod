@@ -237,7 +237,7 @@ umount_var_and_home_chronos() {
   umount /var
 }
 EOF
-    sed -i "s/# Check if we enable ext4 features\./STATE_DEV=\/dev\/mmcblk0p1/"  "$ROOT/sbin/chromeos_startup.sh"
+    sed -i "s/# Check if we enable ext4 features\./STATE_DEV=\$(\. \/usr\/sbin\/write_gpt.sh;\. \/usr\/share\/misc\/chromeos-common\.sh;load_base_vars;get_fixed_dst_drive)/" "$ROOT/sbin/chromeos_startup.sh"
     
     sed -i "s/stable/dev/" "$ROOT/etc/lsb-release"
 
