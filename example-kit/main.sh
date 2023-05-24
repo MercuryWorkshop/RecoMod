@@ -201,7 +201,7 @@ pick_input() {
 
 pick_chroot_dest() {
   pick "Choose the destination you want to chroot into" \
-    "Local USB image"
+    "Local USB image" \
     "Internal storage (A system)" \
     "Internal storage (B system)" 
   case "$CHOICE" in
