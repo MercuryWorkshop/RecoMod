@@ -95,7 +95,7 @@ configure_binaries() {
       key=${file%%=*}
       val=${file##*=}
       debug "Downloading $key: $val"
-      curl -sL "${rwlegacy_source}${file}" -o "lib/rwl/$val"
+      curl -sL "${rwlegacy_source}${val}" -o "lib/rwl/$val"
     done <<< "$files"
   fi
   if fbool fullrom; then

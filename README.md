@@ -37,3 +37,4 @@ The script modifies the image in place, and once that's done, you can flash it w
 
 
 note for wsl users: ensure the image you want to modify is in your wsl (not windows) filesystem. WSL is not guarenteed to work
+additional tip: you're going to have to wait 5 minutes before the menu loads due to a ChromeOS restriction, **UNLESS** you have rootfs verification disabled on both partitions, so do that before using it.

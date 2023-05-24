@@ -386,53 +386,18 @@ edit_gbb(){
     message "Set GBB flags sucessfully"
   fi
 }
-get_rwlegacy_file(){
-  # credit: https://github.com/MrChromebox/scripts/blob/master/firmware.sh
-if [ "$device" = "link" ]; then
-	rwlegacy_file=$seabios_link
-elif [[ "$isHswBox" = true || "$isBdwBox" = true ]]; then
-	rwlegacy_file=$seabios_hswbdw_box
-elif [[ "$isHswBook" = true || "$isBdwBook" = true ]]; then
-	rwlegacy_file=$seabios_hswbdw_book
-elif [ "$isByt" = true ]; then
-	rwlegacy_file=$seabios_baytrail
-elif [ "$isBsw" = true ]; then
-	rwlegacy_file=$seabios_braswell
-elif [ "$isSkl" = true ]; then
-	rwlegacy_file=$seabios_skylake
-elif [ "$isApl" = true ]; then
-	rwlegacy_file=$seabios_apl
-elif [ "$kbl_use_rwl18" = true ]; then
-	rwlegacy_file=$seabios_kbl_18
-elif [ "$isStr" = true ]; then
-	rwlegacy_file=$rwl_altfw_stoney
-elif [ "$isKbl" = true ]; then
-	rwlegacy_file=$seabios_kbl
-elif [ "$isWhl" = true ]; then
-	rwlegacy_file=$rwl_altfw_whl
-elif [ "$device" = "drallion" ]; then
-	rwlegacy_file=$rwl_altfw_drallion
-elif [ "$isCmlBox" = true ]; then
-	rwlegacy_file=$rwl_altfw_cml
-elif [ "$isJsl" = true ]; then
-	rwlegacy_file=$rwl_altfw_jsl
-elif [ "$isZen2" = true ]; then
-	rwlegacy_file=$rwl_altfw_zen2
-elif [ "$isTgl" = true ]; then
-	rwlegacy_file=$rwl_altfw_tgl
-elif [ "$isGlk" = true ]; then
-	rwlegacy_file=$rwl_altfw_glk
-elif [ "$isAdl" = true ]; then
-	rwlegacy_file=$rwl_altfw_adl
-else
-	echo_red "Unknown or unsupported device (${device}); cannot update RW_LEGACY firmware."
-	read -ep "Press enter to return to the main menu"
-	return 1
-fi
-}
-install_rw_legacy(){
-  tar -xf "$KIT/rwl" -C /tmp/ ./$rwlegacy_file
 
+install_rw_legacy(){
+  rwlegacy_file=$(asusb bash /usr/recokit/get_rwl_file.sh)
+  message "Installing $rwlegacy_file"
+  asusb tar -xf "/usr/recokit/rwl.tar.gz" -C /tmp "./${rwlegacy_file}"
+
+  if asusb flashrom -w -i "RW_LEGACY:/tmp/${rwlegacy_file}" -o /tmp/flashrom.log > /dev/null 2>&1; then
+    asusb crossystem dev_boot_altfw=1
+    message "Sucessfully installed RW_LEGACY"
+  else
+    message "Failed to install RW_LEGACY"
+  fi
 }
 install_fullrom(){
  message "not implemented"
