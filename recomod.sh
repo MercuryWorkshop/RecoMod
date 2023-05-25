@@ -64,6 +64,11 @@ traps() {
 }
 
 configure_binaries() {
+  if ! suppress which curl; then
+    quit "curl binary not found! You must install curl. On ubuntu, run sudo apt install curl" 1
+  fi
+
+
   if [ -f /sbin/ssd_util.sh ]; then
     SSD_UTIL=/sbin/ssd_util.sh
   elif [ -f /usr/share/vboot/bin/ssd_util.sh ]; then
