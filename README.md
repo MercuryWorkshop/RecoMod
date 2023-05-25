@@ -10,7 +10,7 @@ This project utilizes MrChromebox's RW_LEGACY and UEFI roms. For more informatio
 ## What can it do?
 Making sure you're in devmode, when you plug in a recovery image patched with this tool it will boot into a utility menu
 
-![image](https://github.com/MercuryWorkshop/RecoMod/assets/58010778/fdbf5d3a-07bf-4fd2-b55a-72eae6583849)
+![image](https://github.com/MercuryWorkshop/RecoMod/assets/58010778/97ed0e69-b756-4b0a-90bb-38bc29b4b69f)
 
 You can enter a bash shell and mess around, edit gbb flags, mess with the firmware config, do flashrom stuff, etc. The toolkit is easy to modify so more tools can be added at your liking.
 
