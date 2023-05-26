@@ -65,7 +65,14 @@ traps() {
 
 configure_binaries() {
   if ! suppress which curl; then
-    quit "curl binary not found! You must install curl. On ubuntu, run sudo apt install curl" 1
+    quit "curl binary not found! You must install curl. On debian/ubuntu, run sudo apt install curl" 1
+  fi
+  if ! suppress which cgpt; then
+    quit "cgpt binary not found! You must install cgpt. On debian/ubuntu, run sudo apt install cgpt" 1
+  fi
+  
+  if ! suppress which futility; then
+    quit "futility binary not found! You must install vboot-utils. On debian/ubuntu, run sudo apt install vboot-kernel-utils and on arch the package is vboot-utils from the AUR" 1
   fi
 
 
