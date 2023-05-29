@@ -458,8 +458,8 @@ THE SCRIPT WILL CONTINUE TO RUN, BUT IT MAY NOT WORK"
 
   # breaks without this
   if suppress which sysctl; then
-    orig_sysctl=$(sysctl --values fs.protected_regular)
-    suppress sysctl -w fs.protected_regular=0
+    orig_sysctl=$(sysctl --values fs.protected_regular || :)
+    suppress sysctl -w fs.protected_regular=0 || :
   fi
 
 
@@ -467,7 +467,7 @@ THE SCRIPT WILL CONTINUE TO RUN, BUT IT MAY NOT WORK"
   main
 
   if suppress which sysctl; then
-    suppress sysctl -w "fs.protected_regular=$orig_sysctl"
+    suppress sysctl -w "fs.protected_regular=$orig_sysctl" || :
   fi
   leave 0
 fi
