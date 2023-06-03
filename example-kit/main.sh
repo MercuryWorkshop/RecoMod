@@ -462,9 +462,7 @@ main() {
       powerwash
       ;;
     4)
-      if [ -f "$KIT/halcyon_enabled" ]; then
-        message "Cannot recover system, --halcyon was enabled while building this image"
-      elif [ -f "$KIT/stripped" ]; then
+      if [ -f "$KIT/stripped" ]; then
         message "Cannot recover system, --strip was enabled while building this image"
       else
         message "Starting Recovery"
