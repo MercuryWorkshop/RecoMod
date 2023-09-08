@@ -101,7 +101,7 @@ configure_binaries() {
     info "Downloading latest rw_legacy payloads into lib/rwl"
     mkdir lib/rwl || :
     rwlegacy_source="$(. <(curl -Ls "$FUS_SOURCES"); echo $rwlegacy_source)"
-    files="$(. <(curl -Ls "$FUS_SOURCES"); env | grep rwl_altfw)"
+    files="$(. <(curl -Ls "$FUS_SOURCES"); env | grep -e rwl_altfw -e seabios)"
 
     while read file; do
       key=${file%%=*}
