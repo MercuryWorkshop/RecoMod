@@ -326,7 +326,7 @@ EOF
         fi
 }
 edit_vpd(){
-    pick "Choose a VPD partitionto edit" \
+    pick "Choose a VPD partition to edit" \
       "Read-Writable (RW_VPD)" \
       "Write-Protected (RO_VPD)"
 
@@ -368,14 +368,18 @@ EOF
 }
 
 edit_gbb(){
-  pick "Choose GBB configuration to set" \
+  pick "Choose GBB flag configuration to set" \
       "Short boot delay" \
       "Force devmode on" \
-      "Factory Default"
+      "Force devmode on + short boot delay" \
+      "Ignore FWMP" \
+      "Factory default (reset)"
   case "$CHOICE" in
-    1) FLAGS=0x4A8 ;;
-    2) FLAGS=0x8090 ;;
-    3) FLAGS=0x0 ;;
+    1) FLAGS=0x1 ;;
+    2) FLAGS=0x80b8 ;;
+    3) FLAGS=0x80b9 ;;
+    4) FLAGS=0x80b0 ;;
+    5) FLAGS=0x0 ;;
   esac
   asusb flashrom --wp-disable > /dev/null 2>&1
   if [ $? -ne 0 ]; then
